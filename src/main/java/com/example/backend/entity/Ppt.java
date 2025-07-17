@@ -14,7 +14,7 @@ import lombok.Data;
 public class Ppt {
 
     @TableId(type = IdType.INPUT)
-    private Long id;
+    private String id;
     private String subject;
     private String coverUrl;
     private Long templateId;
