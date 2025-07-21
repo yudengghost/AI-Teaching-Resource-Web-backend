@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.backend.entity.Video;
 import com.example.backend.service.VideoService;
+import com.example.backend.utils.VideoCover;
 
 @RestController
 @RequestMapping("/video")
@@ -23,6 +24,8 @@ public class VideoController {
 
     @Autowired
     private VideoService videoService;
+    @Autowired
+    private VideoCover videoCover;
 
     @PostMapping("/upload")
     public ResponseEntity<Map<String, Object>> uploadVideo(@RequestBody Video video) {
@@ -58,5 +61,20 @@ public class VideoController {
         result.put("code", -1);
         result.put("message", "删除失败");
         return ResponseEntity.badRequest().body(result);
+    }
+
+    @GetMapping("/getVideoCover")
+    public ResponseEntity<Map<String, Object>> getVideoCover(@RequestParam("videoUrl") String videoUrl) {
+        Map<String, Object> result = new HashMap<>();
+        String cover = videoCover.getVideoCover(videoUrl);
+        if(cover == null){
+            result.put("code", -1);
+            result.put("message", "获取视频封面失败");
+            return ResponseEntity.badRequest().body(result);
+        }
+        result.put("code", 0);
+        result.put("message", "获取视频封面成功");
+        result.put("data", cover);
+        return ResponseEntity.ok(result);
     }
 }
