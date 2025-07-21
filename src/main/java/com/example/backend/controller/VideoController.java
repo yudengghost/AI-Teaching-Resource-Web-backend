@@ -1,5 +1,6 @@
 package com.example.backend.controller;
 
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -66,7 +67,8 @@ public class VideoController {
     @GetMapping("/getVideoCover")
     public ResponseEntity<Map<String, Object>> getVideoCover(@RequestParam("videoUrl") String videoUrl) {
         Map<String, Object> result = new HashMap<>();
-        String cover = videoCover.getVideoCover(videoUrl);
+        byte[] cover = videoCover.getVideoCover(videoUrl);
+        String title = videoCover.getVideoTitle();
         if(cover == null){
             result.put("code", -1);
             result.put("message", "获取视频封面失败");
@@ -74,7 +76,8 @@ public class VideoController {
         }
         result.put("code", 0);
         result.put("message", "获取视频封面成功");
-        result.put("data", cover);
+        result.put("data", Base64.getEncoder().encodeToString(cover));
+        result.put("title", title);
         return ResponseEntity.ok(result);
     }
 }

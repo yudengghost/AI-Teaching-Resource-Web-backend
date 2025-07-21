@@ -1,11 +1,12 @@
 package com.example.backend.utils;
 
-import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.util.StringUtils;
@@ -14,26 +15,23 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 @Component
 public class VideoCover {
     
     @Value("${alapi.token:}")
     private String token; // 在application.properties中配置alapi.token
 
-    private final static Logger logger = LoggerFactory.getLogger(VideoCover.class);
+    private String videoTitle;
     
     /**
-     * 根据视频链接获取视频封面链接
+     * 根据视频链接获取视频封面图片文件
      * 
      * @param videoUrl 视频URL
-     * @return 封面URL，如无法解析则返回默认封面
+     * @return 封面图片的二进制数据，如获取失败返回null
      */
-    public String getVideoCover(String videoUrl) {
+    public byte[] getVideoCover(String videoUrl) {
         if (StringUtils.isEmpty(videoUrl)) {
-            return "/default-video-cover.jpg";
+            return null;
         }
         
         try {
@@ -63,41 +61,17 @@ public class VideoCover {
                 
                 // 解析JSON响应
                 JsonNode root = mapper.readTree(response);
-                // logger.info("code: " + root.get("code").asInt());
                 
                 // 检查API响应是否成功
-                if (root.get("code").asInt() == 200) {
-                    return root.get("data").get("cover").asText();
-                }
-                
-                
-                return null;
-            } 
-            // 优酷视频
-            else if (videoUrl.contains("youku.com")) {
-                Pattern pattern = Pattern.compile("id_(\\w+)");
-                Matcher matcher = pattern.matcher(videoUrl);
-                if (matcher.find()) {
-                    String videoId = matcher.group(1);
-                    return "http://r1.ykimg.com/0541040" + videoId;
-                }
-            }
-            // 腾讯视频
-            else if (videoUrl.contains("v.qq.com")) {
-                Pattern pattern = Pattern.compile("/(\\w+)\\.html");
-                Matcher matcher = pattern.matcher(videoUrl);
-                if (matcher.find()) {
-                    String videoId = matcher.group(1);
-                    return "https://puui.qpic.cn/vpic_cover/" + videoId + "/0";
-                }
-            }
-            // YouTube
-            else if (videoUrl.contains("youtube.com") || videoUrl.contains("youtu.be")) {
-                Pattern pattern = Pattern.compile("v=([\\w-]+)|youtu\\.be/([\\w-]+)");
-                Matcher matcher = pattern.matcher(videoUrl);
-                if (matcher.find()) {
-                    String videoId = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
-                    return "https://img.youtube.com/vi/" + videoId + "/maxresdefault.jpg";
+                if (root.get("code").asInt() == 200 && root.has("data") && root.get("data").has("cover")) {
+                    // 获取封面URL
+                    String coverUrl = root.get("data").get("cover").asText();
+
+                    // 获取视频标题
+                    videoTitle = root.get("data").get("title").asText();
+                    
+                    // 获取图片二进制数据
+                    return downloadImage(coverUrl);
                 }
             }
         } catch (Exception e) {
@@ -107,4 +81,37 @@ public class VideoCover {
         return null;
     }
     
+    /**
+     * 下载图片并返回二进制数据
+     * 
+     * @param imageUrl 图片URL
+     * @return 图片的二进制数据
+     */
+    private byte[] downloadImage(String imageUrl) {
+        try {
+            RestTemplate restTemplate = new RestTemplate();
+            
+            // 设置请求头
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("User-Agent", "Mozilla/5.0");
+            HttpEntity<String> entity = new HttpEntity<>(headers);
+            
+            // 发送GET请求并获取二进制响应
+            ResponseEntity<byte[]> response = restTemplate.exchange(
+                imageUrl, 
+                HttpMethod.GET, 
+                entity, 
+                byte[].class
+            );
+            
+            return response.getBody();
+        } catch (Exception e) {
+            System.err.println("下载图片失败: " + e.getMessage());
+            return null;
+        }
+    }
+
+    public String getVideoTitle() {
+        return videoTitle;
+    }
 }
